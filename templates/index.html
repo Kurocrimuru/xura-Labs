@@ -1,1 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xura</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Import Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;600&display=swap" rel="stylesheet">
+    <!-- Import Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Import additional Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <style>
+        .background-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; /* Agar berada di bawah elemen lain */
+            overflow: hidden;
+            background-image: url("{{ url_for('static', filename='background.jpg') }}");
+            background-size: cover; /* Mengatur ukuran gambar agar menutupi seluruh elemen */
+            background-position: center; /* Mengatur posisi gambar agar berada di tengah */
+            background-repeat: no-repeat; /* Mencegah gambar diulang */
+            filter: drop-shadow(10px 10px 10px rgba(0, 0, 0, 0.5));
+        }
+       
+    </style>
+</head>
+<body>
+    <div class="background-container"></div>
+    <!-- Menu Pilihan Karakter -->
+    <div class="character-selector">
+        <i class="fas fa-user-ninja icon"></i>
+        <select onchange="showCharacter(this.value)">
+            <option value="">LIST CHARACTER</option>
+            <option value="character1.jpg">Character | 1</option>
+            <option value="character2.jpg">Character | 2</option>
+            <option value="character3.jpg">Character | 3</option>
+        </select>
+    </div>
+
+    <!-- Area untuk Menampilkan Karakter Anime -->
+    <div id="character-container" class="character-container">
+        <img id="character" src="" alt="Character">
+    </div>
+    <div class="menu" id="main-menu">
+        <button onclick="showChat()">Chat with Yuna</button>
+        <button onclick="showPortfolio()">Notes</button>
+    </div>
+    
+    <div id="chat-container" class="container chat-container">
+        <button class="back-button" onclick="showMenu()">BACK</button>
+        <div class="logo">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+        </div>
+        <div id="chat-box" class="chat-box">
+            <div id="response" class="messages"></div>
+        </div>
+        <div id="translation-container" class="translation-container">
+            <span id="translated-text"></span>
+        </div>
+        
+        <div class="input-container">
+            <input type="text" id="message" name="message" placeholder="Ketik pesan Anda..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+        </div>
+        <audio controls>
+            <source src="{{ url_for('static', filename='voicevox_output.wav') }}" type="audio/mpeg">
+        </audio>
+    </div>
+    
+    <div id="portfolio" class="container portfolio">
+        <button class="back-button" onclick="showMenu()">BACK</button>
+        <h2 class="raphaelsensei">Note</h2>
+        <div id="notes-section" class="notes-container">
+            <h3>Catatan</h3>
+            <input type="text" id="note-input" placeholder="Tulis catatan baru...">
+            <button onclick="addNote()">Add</button>
+            <div id="note-list"></div>
+        </div>
+        
+
+    <div id="modal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modal-image">
+    </div>
+    <button class="reset-memory-button" onclick="resetMemory()">
+        <i class="fas fa-brain"></i> Reset Memory
+    </button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('chat-container').style.display = 'none';
+            document.getElementById('portfolio').style.display = 'none';
+            loadNotes();
+        });
+
+        function showCharacter(characterImage) {
+            if (characterImage === '') {
+                document.getElementById('character-container').style.display = 'none';
+                return;
+            }
+            const characterImg = document.getElementById('character');
+            characterImg.src = "{{ url_for('static', filename='') }}" + characterImage;
+            document.getElementById('character-container').style.display = 'block';
+        }
+
+        function showMenu() {
+            document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('chat-container').style.display = 'none';
+            document.getElementById('portfolio').style.display = 'none';
+            document.getElementById('character-container').style.display = 'none'; // Sembunyikan container karakter
+            document.getElementById('character-selector').style.display = 'block'; // Tampilkan dropdown karakter
+        }
+
+        function showChat() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('chat-container').style.display = 'flex';
+            document.getElementById('portfolio').style.display = 'none';
+        }
+
+        function showPortfolio() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('chat-container').style.display = 'none';
+            document.getElementById('portfolio').style.display = 'flex';
+            document.getElementById('character-container').style.display = 'none'; // Sembunyikan container karakter
+            document.getElementById('character-selector').style.display = 'none'; // Sembunyikan dropdown karakter
+            lazyLoad();
+        }
+
+        function addNote() {
+            const noteInput = document.getElementById('note-input');
+            const noteText = noteInput.value.trim();
+            if (noteText === '') return; // Ignore empty notes
+
+            let notes = JSON.parse(localStorage.getItem('notes')) || [];
+            notes.push(noteText);
+            localStorage.setItem('notes', JSON.stringify(notes));
+
+            noteInput.value = '';
+
+            displayNotes();
+        }
+
+        function displayNotes() {
+            const noteList = document.getElementById('note-list');
+            let notes = JSON.parse(localStorage.getItem('notes')) || [];
+            noteList.innerHTML = '';
+
+            notes.forEach((note, index) => {
+                noteList.innerHTML += `
+                    <div class="note-item">
+                        ${note}
+                       <img src="{{ url_for('static', filename='trash-icon.png') }}" alt="Hapus" class="delete-icon" onclick="removeNote(${index})">
+                    </div>
+                `;
+            });
+        }
+
+        function removeNote(index) {
+            let notes = JSON.parse(localStorage.getItem('notes')) || [];
+            notes.splice(index, 1);
+            localStorage.setItem('notes', JSON.stringify(notes));
+            displayNotes();
+        }
+
+        function loadNotes() {
+            displayNotes();
+        }
+
+        function showModal(element) {
+            var modal = document.getElementById("modal");
+            var modalImg = document.getElementById("modal-image");
+            modal.style.display = "block";
+            modalImg.src = element.dataset.src;
+        }
+
+        function closeModal() {
+            var modal = document.getElementById("modal");
+            modal.style.display = "none";
+        }
+
+        async function resetMemory() {
+            const response = await fetch('/reset_memory', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+            alert(data.message);
+        }
+
+        async function sendMessage() {
+            const message = document.getElementById('message').value;
+            if (message.trim() === '') return; // Ignore empty messages
+
+            const responseDiv = document.getElementById('response');
+            const audio = document.querySelector('audio');
+            const chatBox = document.getElementById('chat-box');
+            const translationContainer = document.getElementById('translation-container');
+            const translatedTextSpan = document.getElementById('translated-text');
+
+            // Add user's message to chat
+            responseDiv.innerHTML += `<div class="message user">${message}</div>`;
+            document.getElementById('message').value = ''; // Clear input field
+
+            const response = await fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await response.json();
+            responseDiv.innerHTML += `<div class="message bot">${data.response}</div>`;
+
+            if (data.translated_response) {
+                translatedTextSpan.textContent = data.translated_response;
+            }
+
+            audio.load();
+            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+        }
+
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function lazyLoad() {
+            const lazyImages = document.querySelectorAll('img.lazy');
+            const config = {
+                rootMargin: '50px 0px',
+                threshold: 0.01
+            };
+
+            let observer;
+            if ('IntersectionObserver' in window) {
+                observer = new IntersectionObserver(onIntersection, config);
+                lazyImages.forEach(image => {
+                    observer.observe(image);
+                });
+            } else {
+                lazyImages.forEach(image => {
+                    loadImage(image);
+                });
+            }
+
+            function onIntersection(entries) {
+                entries.forEach(entry => {
+                    if (entry.intersectionRatio > 0) {
+                        observer.unobserve(entry.target);
+                        loadImage(entry.target);
+                    }
+                });
+            }
+
+            function loadImage(image) {
+                image.src = image.dataset.src;
+                image.classList.remove('lazy');
+            }
+        }
+    </script>
+</body>
+</html>
 
