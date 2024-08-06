@@ -1,0 +1,9 @@
+Flask>=2.0.2,<2.1
+groq
+SpeechRecognition==3.8.1
+deep-translator==1.6.0
+requests==2.26.0
+pydub==0.25.1
+torch>=2.2.0
+numpy<2.0.0
+Werkzeug==2.0.3
